@@ -1,0 +1,70 @@
+[build-system]
+requires      = ["flit_core == 3.9.0"]
+build-backend =  "flit_core.buildapi"
+
+[project]
+name        = "powerviz"
+version     = "0.1.0"
+description = "Simple dashboard showing ISO/RTO and EIA data."
+
+authors = [
+  { name="Matthew Pham", email="mtpham.github@quantamail.net" },
+]
+
+readme = "README.md"
+license = {file = "LICENSE.md"}
+
+requires-python = "3.10"
+classifiers = [
+    "Programming Language :: Python :: 3.10",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "pandas",
+    "xlrd",
+    "pytz",
+    "tqdm",
+    "aiohttp",
+    "tenacity"
+]
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "flake8",
+    "isort",
+    "mypy",
+    "pip-tools",
+    "pre-commit",
+    "pylint"
+]
+
+[project.urls]
+"Homepage"    = "https://github.com/mtpham99/powerviz"
+"Source"      = "https://github.com/mtpham99/powerviz"
+"Bug Tracker" = "https://github.com/mtpham99/powerviz/issues"
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile           = "black"
+multi_line_output = 3
+skip_gitignore    = true
+
+[tool.mypy]
+disallow_untyped_defs = true
+
+[tool.pylint]
+max-line-length = 88
+disable = [
+    "missing-module-docstring",
+    "unnecessary-pass",
+    "too-many-function-args",
+    "too-many-arguments",
+    "too-few-public-methods",
+    "too-many-locals",
+    "fixme"
+]
