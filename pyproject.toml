@@ -8,22 +8,21 @@ version     = "0.1.0"
 description = "Simple dashboard showing ISO/RTO and EIA data."
 
 authors = [
-  { name="Matthew Pham", email="mtpham.github@quantamail.net" },
+  { name = "Matthew Pham", email = "mtpham.github@quantamail.net" },
 ]
 
 readme = "README.md"
 license = {file = "LICENSE.md"}
 
-requires-python = "3.10"
+requires-python = ">=3.11"
 classifiers = [
-    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
 
 dependencies = [
-    "pandas",
-    "xlrd",
+    "pandas >= 2.2.0",  # calamine engine for excel (2.2.0)
     "pytz",
     "tqdm",
     "aiohttp",
@@ -32,11 +31,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "black",
-    "flake8",
-    "isort",
     "mypy",
-    "pip-tools",
     "pre-commit",
     "pylint"
 ]
@@ -47,24 +42,41 @@ dev = [
 "Bug Tracker" = "https://github.com/mtpham99/powerviz/issues"
 
 [tool.black]
-line-length = 88
+line-length = 79
+include = '.pyi?$'
+exclude = '''
+/(
+    .git
+    | .hg
+    | .mypy_cache
+    | .tox
+    | .venv
+    | _build
+    | buck-out
+    | build
+    | dist
+)/
+'''
 
 [tool.isort]
-profile           = "black"
+line_length = 79
 multi_line_output = 3
-skip_gitignore    = true
+include_trailing_comma = true
 
 [tool.mypy]
 disallow_untyped_defs = true
+warn_unused_ignores = true
 
 [tool.pylint]
-max-line-length = 88
+max-line-length = 79
 disable = [
+    "fixme",
+    "missing-class-docstring",
+    "missing-function-docstring",
     "missing-module-docstring",
-    "unnecessary-pass",
-    "too-many-function-args",
-    "too-many-arguments",
     "too-few-public-methods",
+    "too-many-arguments",
+    "too-many-function-args",
     "too-many-locals",
-    "fixme"
+    "unnecessary-pass"
 ]
