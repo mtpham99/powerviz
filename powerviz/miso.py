@@ -2,6 +2,7 @@
 TODO:
     - parse future forecasts
     - multiprocess parsing pipeline (realtime lmp very slow)
+    - manager worker scheme for fetching/parsing (see BaseClient)
 """
 
 import asyncio
@@ -92,7 +93,7 @@ class MISOClient(BaseClient):
             )
 
             # exclude forecast col
-            load_df = load_df[["Start", "End", "Load_MW"]]
+            load_df = load_df[["start", "end", "load"]]
 
         else:
             raise DatesTypeError()
@@ -118,14 +119,14 @@ class MISOClient(BaseClient):
 
             load_data.append(
                 {
-                    "Start": start,
-                    "End": end,
-                    "Load_MW": round(float(load), 2),
+                    "start": start,
+                    "end": end,
+                    "load": round(float(load), 2),
                 }
             )
 
         load_df = pd.DataFrame(load_data).sort_values(
-            by="Start", ascending=True, ignore_index=True
+            by="start", ascending=True, ignore_index=True
         )
         return load_df
 
@@ -146,32 +147,32 @@ class MISOClient(BaseClient):
             "MISO ActualLoad (MWh)",
         ]
         new_cols = [
-            "Start",
-            "End",
-            "Forecast_MW",
-            "Load_MW",
+            "start",
+            "end",
+            "forecast",
+            "load",
         ]
 
         forecast_load_df = forecast_load_df[use_cols].rename(
             columns=dict(zip(use_cols, new_cols))
         )
 
-        forecast_load_df["Start"] = (
-            pd.to_datetime(forecast_load_df["Start"])
-            + pd.to_timedelta(forecast_load_df["End"] - 1, unit="hours")
+        forecast_load_df["start"] = (
+            pd.to_datetime(forecast_load_df["start"])
+            + pd.to_timedelta(forecast_load_df["end"] - 1, unit="hours")
         ).apply(self.to_native_tz)
-        forecast_load_df["End"] = forecast_load_df["Start"] + dt.timedelta(
+        forecast_load_df["end"] = forecast_load_df["start"] + dt.timedelta(
             hours=1
         )
-        forecast_load_df["Forecast_MW"] = (
-            forecast_load_df["Forecast_MW"].astype(float).round(2)
+        forecast_load_df["forecast"] = (
+            forecast_load_df["forecast"].astype(float).round(2)
         )
-        forecast_load_df["Load_MW"] = (
-            forecast_load_df["Load_MW"].astype(float).round(2)
+        forecast_load_df["load"] = (
+            forecast_load_df["load"].astype(float).round(2)
         )
 
         forecast_load_df = forecast_load_df.sort_values(
-            by="Start", ascending=True, ignore_index=True
+            by="start", ascending=True, ignore_index=True
         )
 
         return forecast_load_df
@@ -200,7 +201,7 @@ class MISOClient(BaseClient):
                     pytz.timezone(self.TIMEZONE)
                 ).replace(minute=0, second=0, microsecond=0)
                 forecast_df = forecast_df[
-                    forecast_df["Start"] == current_hour
+                    forecast_df["start"] == current_hour
                 ].reset_index(drop=True)
 
         elif isinstance(dates, list) and all(
@@ -213,7 +214,7 @@ class MISOClient(BaseClient):
             )
 
             # exclude load col
-            forecast_df = forecast_df[["Start", "End", "Forecast_MW"]]
+            forecast_df = forecast_df[["start", "end", "forecast"]]
 
         else:
             raise DatesTypeError()
@@ -239,14 +240,14 @@ class MISOClient(BaseClient):
 
             forecast_data.append(
                 {
-                    "Start": start,
-                    "End": end,
-                    "Forecast_MW": round(float(forecast), 2),
+                    "start": start,
+                    "end": end,
+                    "forecast": round(float(forecast), 2),
                 }
             )
 
         forecast_df = pd.DataFrame(forecast_data).sort_values(
-            by="Start", ascending=True, ignore_index=True
+            by="start", ascending=True, ignore_index=True
         )
         return forecast_df
 
@@ -298,8 +299,8 @@ class MISOClient(BaseClient):
         end = start + dt.timedelta(minutes=5)
 
         fuel_mix_data: dict[str, dt.datetime | float] = {}
-        fuel_mix_data["Start"] = start
-        fuel_mix_data["End"] = end
+        fuel_mix_data["start"] = start
+        fuel_mix_data["end"] = end
 
         for fuel_dict in fuel_mix_json["Fuel"]["Type"]:
             datetime_str: str = fuel_dict["INTERVALEST"]
@@ -310,12 +311,12 @@ class MISOClient(BaseClient):
                 dt.datetime.strptime(datetime_str, "%Y-%m-%d %I:%M:%S %p")
             )
             assert datetime == start
-            fuel_type = fuel_type.title().replace(" ", "_") + "_MW"
+            fuel_type = fuel_type.lower().replace(" ", "_")
             fuel_mw = round(float(fuel_mw_str), 2)
 
             fuel_mix_data[fuel_type] = fuel_mw
 
-        fuel_mix_data["Total_MW"] = round(float(fuel_mix_json["TotalMW"]), 2)
+        fuel_mix_data["total"] = round(float(fuel_mix_json["TotalMW"]), 2)
 
         fuel_mix_df = pd.DataFrame([fuel_mix_data])
         return fuel_mix_df
@@ -345,36 +346,36 @@ class MISOClient(BaseClient):
         fuel_mix_df = fuel_mix_df.iloc[header_row + 1 :, miso_start_col:]
 
         new_cols = {
-            "HE": "Start",
-            "Gas": "Natural_Gas_MW",
-            "MISO": "Total_MW",
+            "HE": "start",
+            "Gas": "natural_gas",
+            "MISO": "total",
         }
         new_cols |= {
-            col: col.title() + "_MW"
+            col: col.lower()
             for col in fuel_mix_df.columns
             if col not in new_cols
         }
         fuel_mix_df = fuel_mix_df.rename(columns=new_cols)
 
-        fuel_mix_df["Start"] = date + pd.to_timedelta(
-            fuel_mix_df["Start"] - 1, unit="hour"
+        fuel_mix_df["start"] = date + pd.to_timedelta(
+            fuel_mix_df["start"] - 1, unit="hour"
         )
-        fuel_mix_df["End"] = fuel_mix_df["Start"] + dt.timedelta(hours=1)
+        fuel_mix_df["end"] = fuel_mix_df["start"] + dt.timedelta(hours=1)
         for col in fuel_mix_df.columns:
-            if col not in ("Start", "End"):
+            if col not in ("start", "end"):
                 fuel_mix_df[col] = fuel_mix_df[col].astype(float).round(2)
 
         sort_cols = (
-            ["Start", "End"]
+            ["start", "end"]
             + [
                 col
                 for col in fuel_mix_df.columns
-                if col not in ("Start", "End", "Other_MW", "Total_MW")
+                if col not in ("start", "end", "other", "total")
             ]
-            + ["Other_MW", "Total_MW"]
+            + ["other", "total"]
         )
         fuel_mix_df = fuel_mix_df[sort_cols].sort_values(
-            by="Start", ascending=True, ignore_index=True
+            by="start", ascending=True, ignore_index=True
         )
         return fuel_mix_df
 
@@ -435,35 +436,35 @@ class MISOClient(BaseClient):
             "MCC",
         ]
         new_cols = [
-            "Start",
-            "Node",
-            "LMP_$MW",
-            "MLC_$MW",
-            "MCC_$MW",
+            "start",
+            "node",
+            "lmp",
+            "mlc",
+            "mcc",
         ]
         lmp_df = lmp_df[use_cols].rename(columns=dict(zip(use_cols, new_cols)))
 
-        lmp_df = lmp_df[lmp_df["Node"].isin(self.HUB_NAMES)]
+        lmp_df = lmp_df[lmp_df["node"].isin(self.HUB_NAMES)]
 
-        lmp_df["Start"] = pd.to_datetime(lmp_df["Start"]).apply(
+        lmp_df["start"] = pd.to_datetime(lmp_df["start"]).apply(
             self.to_native_tz
         )
-        lmp_df["Node"] = lmp_df["Node"].astype(pd.CategoricalDtype())
-        lmp_df["LMP_$MW"] = lmp_df["LMP_$MW"].astype(float).round(2)
-        lmp_df["MLC_$MW"] = lmp_df["MLC_$MW"].astype(float).round(2)
-        lmp_df["MCC_$MW"] = lmp_df["MCC_$MW"].astype(float).round(2)
-        lmp_df["End"] = lmp_df["Start"] + dt.timedelta(minutes=5)
+        lmp_df["node"] = lmp_df["node"].astype(pd.CategoricalDtype())
+        lmp_df["lmp"] = lmp_df["lmp"].astype(float).round(2)
+        lmp_df["mlc"] = lmp_df["mlc"].astype(float).round(2)
+        lmp_df["mcc"] = lmp_df["mcc"].astype(float).round(2)
+        lmp_df["end"] = lmp_df["start"] + dt.timedelta(minutes=5)
 
         cols_order = [
-            "Start",
-            "End",
-            "Node",
-            "LMP_$MW",
-            "MLC_$MW",
-            "MCC_$MW",
+            "start",
+            "end",
+            "node",
+            "lmp",
+            "mlc",
+            "mcc",
         ]
         lmp_df = lmp_df[cols_order].sort_values(
-            by=["Start", "Node"], ascending=True, ignore_index=True
+            by=["start", "node"], ascending=True, ignore_index=True
         )
         return lmp_df
 
@@ -485,35 +486,35 @@ class MISOClient(BaseClient):
             "RT Ex-Ante MCC",
         ]
         new_cols = [
-            "Start",
-            "Node",
-            "LMP_$MW",
-            "MLC_$MW",
-            "MCC_$MW",
+            "start",
+            "node",
+            "lmp",
+            "mlc",
+            "mcc",
         ]
         lmp_df = lmp_df[use_cols].rename(columns=dict(zip(use_cols, new_cols)))
 
-        lmp_df = lmp_df[lmp_df["Node"].isin(self.HUB_NAMES)]
+        lmp_df = lmp_df[lmp_df["node"].isin(self.HUB_NAMES)]
 
-        lmp_df["Start"] = pd.to_datetime(lmp_df["Start"]).apply(
+        lmp_df["start"] = pd.to_datetime(lmp_df["start"]).apply(
             self.to_native_tz
         )
-        lmp_df["Node"] = lmp_df["Node"].astype(pd.CategoricalDtype())
-        lmp_df["LMP_$MW"] = lmp_df["LMP_$MW"].astype(float).round(2)
-        lmp_df["MLC_$MW"] = lmp_df["MLC_$MW"].astype(float).round(2)
-        lmp_df["MCC_$MW"] = lmp_df["MCC_$MW"].astype(float).round(2)
-        lmp_df["End"] = lmp_df["Start"] + dt.timedelta(minutes=5)
+        lmp_df["node"] = lmp_df["node"].astype(pd.CategoricalDtype())
+        lmp_df["lmp"] = lmp_df["lmp"].astype(float).round(2)
+        lmp_df["mlc"] = lmp_df["mlc"].astype(float).round(2)
+        lmp_df["mcc"] = lmp_df["mcc"].astype(float).round(2)
+        lmp_df["end"] = lmp_df["start"] + dt.timedelta(minutes=5)
 
         cols_order = [
-            "Start",
-            "End",
-            "Node",
-            "LMP_$MW",
-            "MLC_$MW",
-            "MCC_$MW",
+            "start",
+            "end",
+            "node",
+            "lmp",
+            "mlc",
+            "mcc",
         ]
         lmp_df = lmp_df[cols_order].sort_values(
-            by=["Start", "Node"], ascending=True, ignore_index=True
+            by=["start", "node"], ascending=True, ignore_index=True
         )
         return lmp_df
 
@@ -545,7 +546,7 @@ class MISOClient(BaseClient):
                 current_hour = dt.datetime.now(
                     pytz.timezone(self.TIMEZONE)
                 ).replace(minute=0, second=0, microsecond=0)
-                lmp_df = lmp_df[lmp_df["Start"] == current_hour].reset_index(
+                lmp_df = lmp_df[lmp_df["start"] == current_hour].reset_index(
                     drop=True
                 )
 
@@ -602,23 +603,23 @@ class MISOClient(BaseClient):
         )
         lmp_df["End"] = lmp_df["Start"] + dt.timedelta(hours=1)
         lmp_df["Node"] = lmp_df["Node"].astype(pd.CategoricalDtype())
-        for col in ("LMP", "MCC", "MLC"):
+        for col in ("LMP", "MLC", "MCC"):
             lmp_df[col] = lmp_df[col].astype(float).round(2)
 
         lmp_df = lmp_df.rename(
             columns={
-                "Start": "Start",
-                "End": "End",
-                "Node": "Node",
-                "LMP": "LMP_$MW",
-                "MCC": "MCC_$MW",
-                "MLC": "MLC_$MW",
+                "Start": "start",
+                "End": "end",
+                "Node": "node",
+                "LMP": "lmp",
+                "MCC": "mcc",
+                "MLC": "mlc",
             }
         )
 
         lmp_df = lmp_df[
-            ["Start", "End", "Node", "LMP_$MW", "MCC_$MW", "MLC_$MW"]
-        ].sort_values(by=["Start", "Node"], ascending=True, ignore_index=True)
+            ["start", "end", "node", "lmp", "mlc", "mcc"]
+        ].sort_values(by=["start", "node"], ascending=True, ignore_index=True)
         return lmp_df
 
     async def retrieve_and_parse_market_report_files(

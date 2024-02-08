@@ -1,0 +1,30 @@
+version: "3"
+
+services:
+  powerviz_db:
+    container_name: powerviz_db
+    image: postgres:15.5-alpine
+    env_file:
+      - .env
+    hostname: ${POSTGRES_HOST}
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - PGDATA=/var/lib/postgresql/data
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+      - ./scripts/init-miso.sql:/docker-entrypoint-initdb.d/init-miso.sql
+    expose:
+      - 5432
+
+  powerviz_app:
+    container_name: powerviz_app
+    image: powerviz:latest
+    build: ./
+    env_file:
+      - .env
+    ports:
+      - ${POWERVIZ_PORT}:${POWERVIZ_PORT}
+    depends_on:
+      - powerviz_db

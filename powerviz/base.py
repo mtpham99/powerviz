@@ -1,3 +1,8 @@
+"""
+TODO:
+    - manager worker scheme for url fetching/parsing
+"""
+
 import abc
 import asyncio
 import atexit

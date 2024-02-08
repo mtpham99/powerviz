@@ -1,6 +1,5 @@
+data/
 pgdata/
-
-.env
 
 .ipynb_checkpoints/
 *.egg-info/
