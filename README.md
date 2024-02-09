@@ -18,14 +18,15 @@ Currently only MISO data is avilable. Realtime data for load, generation, and LM
 
 ## Internals
 
-Dashboard is made using [Dash (Flask + Plotly)](https://dash.plotly.com/]). Data is stored using a PostgreSQL database. The dockerized Dash app, includes a cron job that runs a python script which retrieves and inserts data into the database every minute. The docker PostgreSQL database is separate from the docker Dash app.
+Dashboard is made using [Dash (Flask + Plotly)](https://dash.plotly.com/). Data is stored using a PostgreSQL database. The dockerized Dash app, includes a cron job that runs a python script which retrieves and inserts data into the database every minute. The docker PostgreSQL database is separate from the docker Dash app.
 
 The webscrapers utilize [Aiohttp](https://docs.aiohttp.org/en/stable/index.html) for asynchronous web requests. 
 
 
 ## Demonstration
 
-![](./assets/demonstration.mp4)
+https://github.com/mtpham99/powerviz/assets/72663763/055fabb4-9aec-40d9-a2ee-e2b59e4d8602
+
 
 
 ## Notes
