@@ -1,8 +1,6 @@
 """
 TODO:
     - parse future forecasts
-    - multiprocess parsing pipeline (realtime lmp very slow)
-    - manager worker scheme for fetching/parsing (see BaseClient)
 """
 
 import asyncio

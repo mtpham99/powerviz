@@ -25,10 +25,8 @@ The webscrapers utilize [Aiohttp](https://docs.aiohttp.org/en/stable/index.html)
 
 ## Demonstration
 
-https://github.com/mtpham99/powerviz/assets/72663763/055fabb4-9aec-40d9-a2ee-e2b59e4d8602
-
+https://github.com/mtpham99/powerviz/assets/72663763/f5360799-51a4-40da-98a9-697e4c2a9187
 
 
 ## Notes
-Historical data retrieval for MISO realtime LMP is quite slow (~10s per file on my machine). The archived/zip MISO market report files are large and parsing xlsx files can be slow (calamine engine helps -- requires pandas >= 2.2). Should implement worker-processing queue in the base client, so file processing can begin immediately while waiting on other files (e.g. allow for parsing xlsx files while waiting on larger zip files).
-
+Historical data retrieval for MISO realtime LMP is quite slow (~10s per file on my machine). The archived/zip MISO market report files are large and parsing xlsx files can be slow (calamine engine helps -- requires pandas >= 2.2).
